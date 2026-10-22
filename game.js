@@ -2,7 +2,7 @@
 
 // ---------- Konstanten ----------
 
-// Würfelzahl -> Richtung (6 = Joker)
+// Würfelzahl -> Richtung (6 = Bombe)
 const DIRS = {
   1: { dr: 1, dc: 0, arrow: '↓' },
   2: { dr: 1, dc: -1, arrow: '↙' },
@@ -17,7 +17,7 @@ const LEGEND = [
   { n: 3, label: '↘', color: '#1f5fd6' },
   { n: 4, label: '→', color: '#1c9b4a' },
   { n: 5, label: '←', color: '#f07a12' },
-  { n: 6, label: 'Joker', color: '#e0409a' },
+  { n: 6, label: 'Bombe', color: '#e0409a' },
 ];
 
 const COLORS = [
@@ -38,9 +38,10 @@ const PIPS = { 1: [4], 2: [0, 8], 3: [0, 4, 8], 4: [0, 2, 6, 8], 5: [0, 2, 4, 6,
 
 const MAX_PLAYERS = COLORS.length;
 const BOT_DELAY = 650;
-const S = 60;        // Rasterabstand im SVG
-const R = 15;        // Kreisradius
-const FINISH_H = 22; // Höhe des Zielstreifens
+const BLAST_ROWS = 2; // so weit fliegt man bei einer Explosion nach oben
+const S = 60;         // Rasterabstand im SVG
+const R = 15;         // Kreisradius
+const FINISH_H = 22;  // Höhe des Zielstreifens
 
 const STORAGE_KEY = 'arrow-giganten-settings';
 
@@ -175,14 +176,15 @@ function newGame() {
       color: COLORS[p.color].hex,
       bot: p.bot,
       pos: null,
-      path: [],
-      out: false,
+      path: [], // { r, c, jump? } – jump = durch Explosion dorthin geflogen
     })),
-    occ: new Map(), // "r,c" -> Spielerindex
+    visited: new Map(), // "r,c" -> Index des letzten Besuchers (nur Optik)
+    bombs: new Map(),   // "r,c" -> Index des Bombenlegers
     current: 0,
     phase: 'idle',
     roll: null,
     anim: null,
+    boom: null,
     log: [],
   };
   $('#setup').classList.add('hidden');
@@ -195,35 +197,21 @@ function newGame() {
 
 const cur = () => G.players[G.current];
 
-function free(r, c) {
-  return r >= 0 && r < G.rows && c >= 0 && c < G.cols && !G.occ.has(key(r, c));
+function inBounds(r, c) {
+  return r >= 0 && r < G.rows && c >= 0 && c < G.cols;
 }
 
 function targetOf(p, n) {
   const d = DIRS[n];
   const r = p.pos.r + d.dr;
   const c = p.pos.c + d.dc;
-  return free(r, c) ? { r, c } : null;
+  return inBounds(r, c) ? { r, c } : null;
 }
 
-function validMoves(p) {
-  const moves = [];
-  for (let n = 1; n <= 5; n++) {
-    const t = targetOf(p, n);
-    if (t) moves.push({ n, ...t });
-  }
-  return moves;
-}
-
-function freeStarts() {
+function startCells() {
   const cells = [];
-  for (let c = 0; c < G.cols; c++) if (free(0, c)) cells.push({ r: 0, c });
+  for (let c = 0; c < G.cols; c++) cells.push({ r: 0, c });
   return cells;
-}
-
-function arrowBetween(a, b) {
-  const n = Object.keys(DIRS).find((k) => DIRS[k].dr === b.r - a.r && DIRS[k].dc === b.c - a.c);
-  return DIRS[n].arrow;
 }
 
 function addLog(msg) {
@@ -236,48 +224,26 @@ function addLog(msg) {
 function beginTurn() {
   const p = cur();
   G.roll = null;
-  if (!p.pos) {
-    if (freeStarts().length === 0) {
-      eliminate(p, 'findet keinen freien Startkreis');
-      return advance();
-    }
-    G.phase = 'start';
-  } else if (validMoves(p).length === 0) {
-    eliminate(p, 'ist eingesperrt und scheidet aus');
-    return advance();
-  } else {
-    G.phase = 'roll';
-  }
+  G.phase = p.pos ? 'roll' : 'start';
   render();
   if (p.bot) botAct();
 }
 
 function advance() {
-  const n = G.players.length;
-  for (let i = 1; i <= n; i++) {
-    const j = (G.current + i) % n;
-    if (!G.players[j].out) {
-      G.current = j;
-      return beginTurn();
-    }
-  }
-  endWithoutWinner();
+  G.current = (G.current + 1) % G.players.length;
+  beginTurn();
 }
 
-function eliminate(p, reason) {
-  p.out = true;
-  addLog(`🔒 ${p.name} ${reason}.`);
-}
-
-function place(p, cell) {
-  G.occ.set(key(cell.r, cell.c), G.players.indexOf(p));
-  p.path.push(cell);
-  if (p.pos) G.anim = { pi: G.players.indexOf(p), seg: p.path.length - 2 };
+function place(p, cell, jump) {
+  const pi = G.players.indexOf(p);
+  G.visited.set(key(cell.r, cell.c), pi);
+  p.path.push(jump ? { ...cell, jump: true } : cell);
+  if (p.pos) G.anim = { pi, seg: p.path.length - 2 };
   p.pos = cell;
 }
 
 function chooseStart(cell) {
-  if (G.phase !== 'start' || !free(cell.r, cell.c) || cell.r !== 0) return;
+  if (G.phase !== 'start' || cell.r !== 0 || !inBounds(cell.r, cell.c)) return;
   const p = cur();
   place(p, cell);
   addLog(`${p.name} startet in Spalte ${cell.c + 1}.`);
@@ -299,21 +265,11 @@ async function roll() {
   G.roll = n;
   setDie(n);
 
-  if (n === 6) {
-    if (validMoves(p).length === 0) {
-      addLog(`${p.name} würfelt Joker – aber kein Zug möglich. Aussetzen.`);
-      return skip(id);
-    }
-    addLog(`${p.name} würfelt 6 – Joker! 🃏`);
-    G.phase = 'joker';
-    render();
-    if (p.bot) botAct();
-    return;
-  }
+  if (n === 6) return layBomb(p, id);
 
   const t = targetOf(p, n);
   if (!t) {
-    addLog(`${p.name} würfelt ${n} ${DIRS[n].arrow} – geht nicht, aussetzen.`);
+    addLog(`${p.name} würfelt ${n} ${DIRS[n].arrow} – Rand, aussetzen.`);
     return skip(id);
   }
   addLog(`${p.name} würfelt ${n} ${DIRS[n].arrow}`);
@@ -328,12 +284,19 @@ async function skip(id) {
   advance();
 }
 
-function chooseJoker(cell) {
-  if (G.phase !== 'joker') return;
-  const p = cur();
-  if (!validMoves(p).some((m) => m.r === cell.r && m.c === cell.c)) return;
-  addLog(`${p.name} setzt den Joker: ${arrowBetween(p.pos, cell)}`);
-  move(p, cell);
+async function layBomb(p, id) {
+  const k = key(p.pos.r, p.pos.c);
+  if (G.bombs.has(k)) {
+    addLog(`${p.name} würfelt 6 – hier liegt schon eine Bombe, aussetzen.`);
+    return skip(id);
+  }
+  G.bombs.set(k, G.players.indexOf(p));
+  addLog(`💣 ${p.name} legt eine Bombe.`);
+  G.phase = 'bomb';
+  render();
+  await wait(900);
+  if (id !== G.id) return;
+  advance();
 }
 
 async function move(p, cell) {
@@ -344,6 +307,22 @@ async function move(p, cell) {
   await wait(450);
   if (id !== G.id) return;
   if (cell.r === G.rows - 1) return win(p);
+
+  const k = key(cell.r, cell.c);
+  const owner = G.bombs.get(k);
+  if (owner != null && G.players[owner] !== p) {
+    G.bombs.delete(k);
+    G.boom = cell;
+    G.phase = 'boom';
+    addLog(`💥 ${p.name} tritt auf die Bombe von ${G.players[owner].name} – ${BLAST_ROWS} Reihen zurück!`);
+    render();
+    await wait(800);
+    if (id !== G.id) return;
+    if (cell.r > 0) place(p, { r: Math.max(0, cell.r - BLAST_ROWS), c: cell.c }, true);
+    render();
+    await wait(500);
+    if (id !== G.id) return;
+  }
   advance();
 }
 
@@ -352,20 +331,6 @@ function win(p) {
   addLog(`🏁 ${p.name} ist unten angekommen!`);
   render();
   showResult('🏆', `${p.name} gewinnt!`, `Unten angekommen nach ${p.path.length - 1} Schritten.`, p.color);
-}
-
-function endWithoutWinner() {
-  G.phase = 'over';
-  const best = Math.max(...G.players.map((p) => (p.pos ? p.pos.r : -1)));
-  const leaders = G.players.filter((p) => (p.pos ? p.pos.r : -1) === best);
-  render();
-  if (leaders.length === 1) {
-    showResult('🔒', `${leaders[0].name} gewinnt!`,
-      `Alle sind eingesperrt – ${leaders[0].name} kam am weitesten (Reihe ${best + 1}).`, leaders[0].color);
-  } else {
-    showResult('🤝', 'Unentschieden!',
-      `Alle sind eingesperrt – ${leaders.map((p) => p.name).join(' & ')} kamen gleich weit.`, null);
-  }
 }
 
 // ---------- Bot ----------
@@ -377,66 +342,19 @@ function botAct() {
     if (id !== G.id || G.phase !== phase || !cur().bot) return;
     if (phase === 'start') chooseStart(botPickStart());
     else if (phase === 'roll') roll();
-    else if (phase === 'joker') chooseJoker(botPickJoker(cur()));
   }, BOT_DELAY);
 }
 
-// Kürzester Weg (in Schritten) von start zur untersten Reihe über freie Kreise.
-function distToBottom(start) {
-  if (start.r === G.rows - 1) return 0;
-  const seen = new Set([key(start.r, start.c)]);
-  let frontier = [start];
-  let d = 0;
-  while (frontier.length) {
-    d++;
-    const next = [];
-    for (const s of frontier) {
-      for (let n = 1; n <= 5; n++) {
-        const r = s.r + DIRS[n].dr;
-        const c = s.c + DIRS[n].dc;
-        const k = key(r, c);
-        if (!free(r, c) || seen.has(k)) continue;
-        if (r === G.rows - 1) return d;
-        seen.add(k);
-        next.push({ r, c });
-      }
-    }
-    frontier = next;
-  }
-  return Infinity;
-}
-
-// Wie viele der drei Abwärtsrichtungen sind von cell aus frei?
-function downOptions(cell) {
-  let k = 0;
-  for (let n = 1; n <= 3; n++) if (free(cell.r + DIRS[n].dr, cell.c + DIRS[n].dc)) k++;
-  return k;
-}
-
+// Möglichst nicht am Rand und mit etwas Abstand zu den anderen starten.
 function botPickStart() {
   const others = G.players.filter((p) => p.pos).map((p) => p.pos.c);
   let best = null;
   let bestScore = Infinity;
-  for (const cell of freeStarts()) {
+  for (const cell of startCells()) {
     const edge = cell.c === 0 || cell.c === G.cols - 1 ? 1 : 0;
     const spacing = others.length ? Math.min(...others.map((c) => Math.abs(c - cell.c))) : 0;
     const score = edge - Math.min(spacing, 3) * 0.4 + Math.random() * 0.8;
     if (score < bestScore) { bestScore = score; best = cell; }
-  }
-  return best;
-}
-
-function botPickJoker(p) {
-  let best = null;
-  let bestScore = Infinity;
-  for (const m of validMoves(p)) {
-    if (m.r === G.rows - 1) return m;
-    G.occ.set(key(m.r, m.c), -1); // probeweise besetzen
-    const dist = distToBottom(m);
-    const opts = downOptions(m);
-    G.occ.delete(key(m.r, m.c));
-    const score = (dist === Infinity ? 100 - m.r : dist) + (3 - opts) * 0.35 + Math.random() * 0.1;
-    if (score < bestScore) { bestScore = score; best = m; }
   }
   return best;
 }
@@ -469,6 +387,38 @@ function render() {
   renderPanel();
 }
 
+// Bombe in Spielerfarbe: Körper, Glanzpunkt, Kappe, Lunte und flackernder Funke.
+function bombSvg(x, y, color, size, fresh) {
+  const s = size / 10;
+  return `<g transform="translate(${x} ${y}) scale(${s})"><g class="bomb${fresh ? ' fresh' : ''}">
+    <circle r="10" cy="2" fill="${color}" stroke="#222" stroke-width="1.6"/>
+    <ellipse cx="-3.5" cy="-1.5" rx="3" ry="2" fill="#fff" opacity=".55" transform="rotate(-35 -3.5 -1.5)"/>
+    <rect x="1.5" y="-10.5" width="7" height="5" rx="1.2" fill="#333" transform="rotate(40 5 -8)"/>
+    <path d="M8.5 -11 q4 -5 8 -2" fill="none" stroke="#5a4632" stroke-width="1.6" stroke-linecap="round"/>
+    <g class="spark" transform="translate(17 -13)">
+      <path d="M0 -5 L1.4 -1.4 L5 0 L1.4 1.4 L0 5 L-1.4 1.4 L-5 0 L-1.4 -1.4 Z" fill="#ffcc00"/>
+      <circle r="1.6" fill="#ff6a00"/>
+    </g>
+  </g></g>`;
+}
+
+function boomSvg(x, y) {
+  const pts = [];
+  for (let i = 0; i < 16; i++) {
+    const a = (Math.PI * 2 * i) / 16;
+    const rad = i % 2 ? 11 : 26;
+    pts.push(`${(x + Math.cos(a) * rad).toFixed(1)},${(y + Math.sin(a) * rad).toFixed(1)}`);
+  }
+  const inner = pts.map((p) => {
+    const [px, py] = p.split(',').map(Number);
+    return `${(x + (px - x) * 0.55).toFixed(1)},${(y + (py - y) * 0.55).toFixed(1)}`;
+  });
+  return `<g class="boom">
+    <polygon points="${pts.join(' ')}" fill="#ff8a00" stroke="#c21a00" stroke-width="2" stroke-linejoin="round"/>
+    <polygon points="${inner.join(' ')}" fill="#ffe14d"/>
+  </g>`;
+}
+
 function renderLegend() {
   const wrap = $('#legend');
   wrap.innerHTML = '';
@@ -476,16 +426,10 @@ function renderLegend() {
     const item = el('div', 'leg' + (G.roll === l.n ? ' active' : ''));
     const num = el('span', 'num', String(l.n));
     num.style.color = l.color;
-    const arr = el('span', 'arr' + (l.n === 6 ? ' joker' : ''), l.label);
+    const arr = el('span', 'arr' + (l.n === 6 ? ' bomb-label' : ''), l.label);
     item.append(num, arr);
     wrap.append(item);
   }
-}
-
-function targetsForCurrent() {
-  if (G.phase === 'start') return freeStarts();
-  if (G.phase === 'joker') return validMoves(cur());
-  return [];
 }
 
 function renderBoard() {
@@ -507,41 +451,64 @@ function renderBoard() {
   // Kreise
   for (let r = 0; r < G.rows; r++) {
     for (let c = 0; c < G.cols; c++) {
-      const owner = G.occ.get(key(r, c));
-      const style = owner != null ? ` style="fill:${G.players[owner].color}22;stroke:${G.players[owner].color}"` : '';
+      const v = G.visited.get(key(r, c));
+      const style = v != null ? ` style="fill:${G.players[v].color}22;stroke:${G.players[v].color}"` : '';
       h += `<circle class="cell" cx="${cx(c)}" cy="${cy(r)}" r="${R}"${style}/>`;
     }
   }
 
-  // Linien
+  // Linien (Explosions-Sprünge gestrichelt)
   G.players.forEach((p, pi) => {
     for (let i = 1; i < p.path.length; i++) {
       const a = p.path[i - 1];
       const b = p.path[i];
       const ax = cx(a.c), ay = cy(a.r), bx = cx(b.c), by = cy(b.r);
       const len = Math.hypot(bx - ax, by - ay);
+      if (!len) continue; // Explosion in der obersten Reihe: kein Sprung
       const ux = (bx - ax) / len, uy = (by - ay) / len;
       const o = R + 1;
-      const segLen = (len - 2 * o).toFixed(1);
       const anim = G.anim && G.anim.pi === pi && G.anim.seg === i - 1;
-      h += `<line class="path-seg${anim ? ' draw' : ''}" style="--len:${segLen}" stroke="${p.color}"
+      const cls = b.jump ? 'jump' : 'path-seg';
+      h += `<line class="${cls}${anim ? ' draw' : ''}" style="--len:${(len - 2 * o).toFixed(1)}" stroke="${p.color}"
         x1="${ax + ux * o}" y1="${ay + uy * o}" x2="${bx - ux * o}" y2="${by - uy * o}"/>`;
     }
   });
-  G.anim = null;
 
-  // Aktuelle Positionen
+  // Spielfiguren – mehrere auf einem Kreis bekommen ineinanderliegende Ringe
+  const stacks = new Map();
   for (const p of G.players) {
     if (!p.pos) continue;
-    h += `<circle class="pos-ring" cx="${cx(p.pos.c)}" cy="${cy(p.pos.r)}" r="${R + 5}" stroke="${p.color}"/>`;
-    h += `<circle cx="${cx(p.pos.c)}" cy="${cy(p.pos.r)}" r="7" fill="${p.color}"/>`;
+    const k = key(p.pos.r, p.pos.c);
+    if (!stacks.has(k)) stacks.set(k, []);
+    stacks.get(k).push(p);
+  }
+  for (const [k, ps] of stacks) {
+    const [r, c] = k.split(',').map(Number);
+    ps.forEach((p, i) => {
+      h += `<circle class="pos-ring" cx="${cx(c)}" cy="${cy(r)}" r="${R + 5 + i * 4.5}" stroke="${p.color}"/>`;
+    });
+    if (!G.bombs.has(k)) h += `<circle cx="${cx(c)}" cy="${cy(r)}" r="7" fill="${ps[ps.length - 1].color}"/>`;
   }
 
-  // Wählbare Kreise (Start / Joker)
+  // Bomben
+  for (const [k, owner] of G.bombs) {
+    const [r, c] = k.split(',').map(Number);
+    const fresh = G.phase === 'bomb' && cur() === G.players[owner] && cur().pos.r === r && cur().pos.c === c;
+    h += bombSvg(cx(c) - 1.5, cy(r) - 1, G.players[owner].color, 11, fresh);
+  }
+
+  // Explosion
+  if (G.phase === 'boom' && G.boom) h += boomSvg(cx(G.boom.c), cy(G.boom.r));
+
+  G.anim = null;
+
+  // Wählbare Startkreise
   const p = cur();
-  for (const t of targetsForCurrent()) {
-    h += `<circle class="target" style="--c:${p.color}" cx="${cx(t.c)}" cy="${cy(t.r)}" r="${R + 3}"/>`;
-    if (!p.bot) h += `<circle class="hit" data-r="${t.r}" data-c="${t.c}" cx="${cx(t.c)}" cy="${cy(t.r)}" r="${S / 2}"/>`;
+  if (G.phase === 'start') {
+    for (const t of startCells()) {
+      h += `<circle class="target" style="--c:${p.color}" cx="${cx(t.c)}" cy="${cy(t.r)}" r="${R + 3}"/>`;
+      if (!p.bot) h += `<circle class="hit" data-r="${t.r}" data-c="${t.c}" cx="${cx(t.c)}" cy="${cy(t.r)}" r="${S / 2}"/>`;
+    }
   }
 
   svg.innerHTML = h;
@@ -553,7 +520,8 @@ function statusText() {
     case 'start': return p.bot ? `${p.name} wählt einen Startkreis …` : `${p.name}: Wähle deinen Startkreis oben.`;
     case 'roll': return p.bot ? `${p.name} würfelt gleich …` : `${p.name} ist dran – würfeln!`;
     case 'rolling': return `${p.name} würfelt …`;
-    case 'joker': return p.bot ? `Joker! ${p.name} überlegt …` : 'Joker! Wähle einen markierten Kreis.';
+    case 'bomb': return `💣 ${p.name} legt eine Bombe!`;
+    case 'boom': return `💥 Bumm! ${p.name} fliegt zurück.`;
     case 'skip': return `${p.name} muss aussetzen.`;
     case 'moving': return `${p.name} zieht …`;
     case 'over': return 'Spiel vorbei!';
@@ -573,24 +541,26 @@ function renderPanel() {
   $('#rollBtn').disabled = !canRoll;
   $('#die').disabled = !canRoll;
 
+  const bombsOf = (pi) => [...G.bombs.values()].filter((o) => o === pi).length;
   const list = $('#players');
   list.innerHTML = '';
-  for (const pl of G.players) {
-    const li = el('li', (pl === p && G.phase !== 'over' ? 'current' : '') + (pl.out ? ' out' : ''));
+  G.players.forEach((pl, pi) => {
+    const li = el('li', pl === p && G.phase !== 'over' ? 'current' : '');
     li.style.setProperty('--c', pl.color);
     const d = el('span', 'dot');
     d.style.background = pl.color;
     const name = el('span', 'name', pl.name);
     if (pl.bot) name.append(el('span', 'tag', 'BOT'));
+    const nb = bombsOf(pi);
     const info = el('span', 'info',
-      pl.out ? 'eingesperrt' : pl.pos ? `Reihe ${pl.pos.r + 1}/${G.rows}` : 'noch kein Start');
+      (pl.pos ? `Reihe ${pl.pos.r + 1}/${G.rows}` : 'noch kein Start') + (nb ? ` · 💣${nb}` : ''));
     const bar = el('div', 'bar');
     const fill = el('span');
     fill.style.width = (pl.pos ? (pl.pos.r / (G.rows - 1)) * 100 : 0) + '%';
     bar.append(fill);
     li.append(d, name, info, bar);
     list.append(li);
-  }
+  });
 
   const log = $('#log');
   log.innerHTML = '';
@@ -619,10 +589,8 @@ $('#boardBtn').onclick = () => $('#overlay').classList.add('hidden');
 
 $('#board').addEventListener('click', (e) => {
   const t = e.target.closest('[data-r]');
-  if (!t || !G || cur().bot) return;
-  const cell = { r: +t.dataset.r, c: +t.dataset.c };
-  if (G.phase === 'start') chooseStart(cell);
-  else if (G.phase === 'joker') chooseJoker(cell);
+  if (!t || !G || cur().bot || G.phase !== 'start') return;
+  chooseStart({ r: +t.dataset.r, c: +t.dataset.c });
 });
 
 document.addEventListener('keydown', (e) => {
