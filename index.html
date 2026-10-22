@@ -1,0 +1,85 @@
+<!doctype html>
+<html lang="de">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <title>Arrow-Giganten</title>
+  <meta name="description" content="Würfel-Duell auf Papier: Wer kommt zuerst unten an?">
+  <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Crect x='4' y='4' width='56' height='56' rx='12' fill='%23e0262f'/%3E%3Cg fill='%23fff'%3E%3Ccircle cx='20' cy='20' r='6'/%3E%3Ccircle cx='32' cy='32' r='6'/%3E%3Ccircle cx='44' cy='44' r='6'/%3E%3C/g%3E%3C/svg%3E">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Fredoka:wght@500;600;700&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+
+  <!-- Setup -->
+  <section id="setup" class="setup">
+    <div class="card">
+      <h1 class="logo">Arrow-Giganten</h1>
+      <p class="tagline">Wer kommt zuerst unten an? 🏁</p>
+
+      <h2>Spieler</h2>
+      <div id="playerRows" class="player-rows"></div>
+      <button id="addPlayer" class="btn ghost">+ Spieler hinzufügen</button>
+
+      <h2>Spielfeld</h2>
+      <div id="sizeSeg" class="seg"></div>
+
+      <details class="rules">
+        <summary>Spielregeln</summary>
+        <ul>
+          <li>Jeder Spieler wählt zuerst einen freien Startkreis in der <b>obersten Reihe</b>.</li>
+          <li>Reihum wird gewürfelt. Die Zahl bestimmt die Richtung des nächsten Schritts:
+            <b>1</b>&nbsp;↓ &nbsp; <b>2</b>&nbsp;↙ &nbsp; <b>3</b>&nbsp;↘ &nbsp; <b>4</b>&nbsp;→ &nbsp; <b>5</b>&nbsp;← &nbsp; <b>6</b>&nbsp;Joker (Richtung frei wählbar).</li>
+          <li>Jeder Kreis darf nur <b>einmal</b> benutzt werden – auch keine gegnerischen Kreise.</li>
+          <li>Geht der gewürfelte Schritt nicht (Rand oder Kreis belegt), muss man <b>aussetzen</b>.</li>
+          <li>Wer in keine Richtung mehr ziehen kann, ist <b>eingesperrt</b> und scheidet aus.</li>
+          <li>Wer zuerst die <b>unterste Reihe</b> erreicht, gewinnt.</li>
+        </ul>
+      </details>
+
+      <button id="startBtn" class="btn primary big">Los geht's!</button>
+    </div>
+  </section>
+
+  <!-- Spiel -->
+  <section id="game" class="app hidden">
+    <main class="sheet">
+      <div class="sheet-title">~ ARROW-GIGANTEN ~</div>
+      <div id="legend" class="legend"></div>
+      <svg id="board" class="board" role="img" aria-label="Spielfeld"></svg>
+    </main>
+
+    <aside class="panel">
+      <div id="status" class="status"></div>
+      <div class="dice-row">
+        <button id="die" class="die" aria-label="Würfel"></button>
+        <button id="rollBtn" class="btn primary">Würfeln</button>
+      </div>
+      <ul id="players" class="players"></ul>
+      <ol id="log" class="log"></ol>
+      <div class="panel-actions">
+        <button id="restartBtn" class="btn ghost">Neu starten</button>
+        <button id="menuBtn" class="btn ghost">Menü</button>
+      </div>
+    </aside>
+  </section>
+
+  <!-- Spielende -->
+  <div id="overlay" class="overlay hidden">
+    <div class="card result">
+      <div id="resultEmoji" class="result-emoji">🏆</div>
+      <h2 id="resultTitle"></h2>
+      <p id="resultText"></p>
+      <div class="result-actions">
+        <button id="againBtn" class="btn primary">Nochmal</button>
+        <button id="boardBtn" class="btn ghost">Brett ansehen</button>
+        <button id="menuBtn2" class="btn ghost">Menü</button>
+      </div>
+    </div>
+  </div>
+
+  <script src="game.js"></script>
+</body>
+</html>
