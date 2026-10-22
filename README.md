@@ -7,24 +7,26 @@ Läuft ohne Installation direkt im Browser (Desktop, iPad, Handy). Es ist reines
 ## Spielregeln
 
 - Spielfeld: 6 × 9 Kreise (optional groß: 8 × 12).
-- Jeder Spieler wählt zuerst einen freien Startkreis in der **obersten Reihe**.
-- Reihum wird gewürfelt. Die Zahl bestimmt die Richtung des nächsten Schritts:
+- Jeder Spieler wählt zuerst einen Startkreis in der **obersten Reihe**.
+- Reihum wird gewürfelt. Die Zahl bestimmt, was passiert:
 
   | Würfel | 1 | 2 | 3 | 4 | 5 | 6 |
   |---|---|---|---|---|---|---|
-  | Richtung | ↓ | ↙ | ↘ | → | ← | Joker (frei wählbar) |
+  | Aktion | ↓ | ↙ | ↘ | → | ← | 💣 Bombe legen |
 
-- Jeder Kreis darf nur **einmal** benutzt werden, auch keine Kreise der Gegner.
-- Geht der gewürfelte Schritt nicht (Rand oder Kreis belegt), muss man **aussetzen**.
-- Wer in keine Richtung mehr ziehen kann, ist **eingesperrt** und scheidet aus.
-- Wer zuerst die **unterste Reihe** erreicht, gewinnt. Sind alle eingesperrt, gewinnt, wer am weitesten unten steht.
+- **Bombe:** Bei einer 6 legst du eine Bombe in deiner Farbe auf deinen aktuellen Kreis, statt zu ziehen.
+  Tritt ein **anderer** Spieler darauf, explodiert sie: Er fliegt **2 Reihen nach oben** und die Bombe ist weg.
+  Auf eigene Bomben zu treten ist harmlos.
+- Jeder Kreis darf betreten werden, auch wenn dort schon jemand war oder gerade steht.
+- Führt der Wurf über den Spielfeldrand hinaus (oder liegt auf deinem Kreis schon eine Bombe), musst du **aussetzen**.
+- Wer zuerst die **unterste Reihe** erreicht, gewinnt.
 
 ## Modi
 
 - 2 bis 6 Spieler an einem Gerät (Hot-Seat)
 - Jeder Platz kann Mensch oder **Bot** sein, auch Bot gegen Bot zum Zuschauen
 
-Bedienung: Startkreis bzw. Joker-Ziel antippen, mit dem Button, dem Würfel oder der Leertaste würfeln.
+Bedienung: Startkreis antippen, mit dem Button, dem Würfel oder der Leertaste würfeln.
 
 ## Lokal spielen
 

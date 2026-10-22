@@ -179,7 +179,7 @@ h1, h2, .sheet-title, .legend, .btn, .status { font-family: "Fredoka", system-ui
   -webkit-text-stroke: 1.5px #222;
 }
 .leg .arr { font-size: 22px; font-weight: 700; line-height: 1; color: #1c9b4a; }
-.leg .arr.joker { font-size: 15px; color: var(--ink); padding-top: 4px; font-weight: 500; }
+.leg .arr.bomb-label { font-size: 15px; color: var(--ink); padding-top: 4px; font-weight: 500; }
 .leg.active { background: #fff3b0; transform: scale(1.08); box-shadow: 0 0 0 2px #f2b705; }
 
 .board {
@@ -198,6 +198,21 @@ h1, h2, .sheet-title, .legend, .btn, .status { font-family: "Fredoka", system-ui
   animation: draw .4s ease-out forwards;
 }
 @keyframes draw { to { stroke-dashoffset: 0; } }
+.board .jump { stroke-width: 3; stroke-linecap: round; stroke-dasharray: 2 7; opacity: .7; }
+.board .jump.draw { animation: fade-in .4s ease-out; }
+@keyframes fade-in { from { opacity: 0; } }
+
+.board .bomb { transform-box: fill-box; transform-origin: center; }
+.board .bomb.fresh { animation: drop .45s cubic-bezier(.2, 1.6, .4, 1); }
+@keyframes drop { from { transform: translateY(-14px) scale(.4); opacity: 0; } }
+.board .spark { animation: flicker .35s steps(2) infinite; }
+@keyframes flicker { 50% { opacity: .35; } }
+.board .boom { transform-box: fill-box; transform-origin: center; animation: boom .8s ease-out forwards; }
+@keyframes boom {
+  0% { transform: scale(.2); opacity: 1; }
+  40% { transform: scale(1.25); opacity: 1; }
+  100% { transform: scale(1.6); opacity: 0; }
+}
 .board .pos-ring { fill: none; stroke-width: 3.5; }
 .board .target {
   fill: var(--c);
@@ -336,6 +351,6 @@ h1, h2, .sheet-title, .legend, .btn, .status { font-family: "Fredoka", system-ui
   .log { display: none; }
   .leg .num { font-size: 24px; }
   .leg .arr { font-size: 18px; }
-  .leg .arr.joker { font-size: 12px; }
+  .leg .arr.bomb-label { font-size: 12px; }
   .board { max-height: none; }
 }
