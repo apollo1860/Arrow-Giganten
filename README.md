@@ -23,8 +23,28 @@ Läuft ohne Installation direkt im Browser (Desktop, iPad, Handy). Es ist reines
 
 ## Modi
 
+- **Normal** oder **Trinkspiel 🍻**
 - 2 bis 6 Spieler an einem Gerät (Hot-Seat)
 - Jeder Platz kann Mensch oder **Bot** sein, auch Bot gegen Bot zum Zuschauen
+
+## Trinkspiel 🍻 (ab 18)
+
+Etwa die Hälfte aller Kreise (ohne Start- und Zielreihe) wird zum Aktionsfeld. Wer darauf landet, bekommt eine Karte.
+
+| Feld | Was passiert |
+|---|---|
+| 🍺 Trinken | Trinken oder Schlucke verteilen, z. B. „Verteile 3 Schlucke“, „Wer vorne liegt, trinkt 2“ |
+| 📜 Regel | Eine Regel aus der Liste antippen und aktivieren (z. B. Daumenmeister, Verbotenes Wort) oder eine eigene ausdenken. Bis zu 5 Regeln gelten gleichzeitig, jede kann mit × wieder aufgehoben werden. |
+| 🎲 Spielfeld | Greift ins Spiel ein: nochmal würfeln, Bombe legen, Platz tauschen, 1 Reihe vor, „trink oder geh zurück“ |
+| 🎉 Gruppe | Aufgaben für alle, z. B. „Prost! Alle trinken 1“, „Alle mit Brille trinken“ |
+
+Vor dem Start wählt man:
+
+- **Nur Vorlagen:** sofort losspielen, Kategorien einzeln an- und abwählbar
+- **Eigene Felder:** eigene Einträge (🍺, 🎉 oder 📜) eintippen, die zufällig verteilt werden, optional mit Vorlagen aufgefüllt
+- **Intensität:** Mild, Normal oder Hart (bestimmt die Schluckzahlen und schaltet harte Karten wie den Wasserfall frei)
+
+Die Vorlagen stehen in `drinks.js` und lassen sich dort leicht erweitern.
 
 Bedienung: Startkreis antippen, mit dem Button, dem Würfel oder der Leertaste würfeln.
 

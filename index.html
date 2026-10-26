@@ -19,12 +19,40 @@
       <h1 class="logo">Arrow-Giganten</h1>
       <p class="tagline">Wer kommt zuerst unten an? 🏁</p>
 
+      <h2>Modus</h2>
+      <div id="modeSeg" class="seg"></div>
+
       <h2>Spieler</h2>
       <div id="playerRows" class="player-rows"></div>
       <button id="addPlayer" class="btn ghost">+ Spieler hinzufügen</button>
 
       <h2>Spielfeld</h2>
       <div id="sizeSeg" class="seg"></div>
+
+      <div id="drinkSetup" class="drink-setup hidden">
+        <p class="hint">🔞 Ab 18 – trinkt verantwortungsvoll. „Schluck“ klappt auch mit Alkoholfreiem.</p>
+        <h2>Aktionsfelder</h2>
+        <p class="sub">Etwa die Hälfte aller Kreise wird zum Aktionsfeld.</p>
+        <div id="sourceSeg" class="seg"></div>
+
+        <div id="customBox" class="custom-box">
+          <div class="custom-add">
+            <select id="customCat" aria-label="Kategorie"></select>
+            <input id="customText" maxlength="120" placeholder="z. B. Gastgeber trinkt 2 Schlucke">
+            <button id="customAdd" class="btn primary">+</button>
+          </div>
+          <ul id="customList" class="custom-list"></ul>
+          <label class="check"><input type="checkbox" id="fillPresets"> Restliche Felder mit Vorlagen auffüllen</label>
+        </div>
+
+        <div id="presetBox">
+          <h3>Vorlagen</h3>
+          <div id="catChecks" class="chips"></div>
+          <h3>Intensität</h3>
+          <div id="levelSeg" class="seg"></div>
+        </div>
+        <p id="drinkWarn" class="warn"></p>
+      </div>
 
       <details class="rules">
         <summary>Spielregeln</summary>
@@ -37,6 +65,7 @@
           <li>Jeder Kreis darf betreten werden – auch wenn dort schon jemand war oder gerade steht.</li>
           <li>Führt der Wurf über den Rand hinaus (oder liegt auf deinem Kreis schon eine Bombe), musst du <b>aussetzen</b>.</li>
           <li>Wer zuerst die <b>unterste Reihe</b> erreicht, gewinnt.</li>
+          <li><b>Trinkspiel:</b> Etwa jeder zweite Kreis ist ein Aktionsfeld (🍺 Trinken, 📜 Regel, 🎲 Spielfeld, 🎉 Gruppe). Wer darauf landet, zieht die Aufgabe. Auf 📜-Feldern aktiviert man eine Regel aus der Liste oder denkt sich selbst eine aus.</li>
         </ul>
       </details>
 
@@ -47,8 +76,9 @@
   <!-- Spiel -->
   <section id="game" class="app hidden">
     <main class="sheet">
-      <div class="sheet-title">~ ARROW-GIGANTEN ~</div>
+      <div id="sheetTitle" class="sheet-title">~ ARROW-GIGANTEN ~</div>
       <div id="legend" class="legend"></div>
+      <div id="catLegend" class="cat-legend hidden"></div>
       <svg id="board" class="board" role="img" aria-label="Spielfeld"></svg>
     </main>
 
@@ -59,6 +89,10 @@
         <button id="rollBtn" class="btn primary">Würfeln</button>
       </div>
       <ul id="players" class="players"></ul>
+      <div id="rulesBox" class="rules-box hidden">
+        <h3>📜 Aktive Regeln</h3>
+        <ul id="ruleList"></ul>
+      </div>
       <ol id="log" class="log"></ol>
       <div class="panel-actions">
         <button id="restartBtn" class="btn ghost">Neu starten</button>
@@ -81,6 +115,18 @@
     </div>
   </div>
 
+  <!-- Aufgabenkarte (Trinkspiel) -->
+  <div id="taskOverlay" class="overlay hidden">
+    <div id="taskCard" class="card task-card">
+      <div class="task-head"><span id="taskIcon" class="task-icon"></span><span id="taskCat"></span></div>
+      <div id="taskWho" class="task-who"></div>
+      <p id="taskText" class="task-text"></p>
+      <div id="taskBody"></div>
+      <div id="taskActions" class="result-actions"></div>
+    </div>
+  </div>
+
+  <script src="drinks.js"></script>
   <script src="game.js"></script>
 </body>
 </html>

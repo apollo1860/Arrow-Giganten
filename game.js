@@ -77,8 +77,25 @@ let settings = loadSettings() || {
     { name: 'Rot', color: 1, bot: true },
   ],
 };
+settings.mode = settings.mode || 'normal';
+settings.drink = {
+  ...DRINK_DEFAULTS,
+  ...settings.drink,
+  cats: { ...DRINK_DEFAULTS.cats, ...(settings.drink && settings.drink.cats) },
+  custom: (settings.drink && settings.drink.custom) || [],
+};
 
 // ---------- Setup-Bildschirm ----------
+
+// Segment-Umschalter: options = [[wert, beschriftung], …]
+function segment(wrap, options, value, onPick) {
+  wrap.innerHTML = '';
+  for (const [v, label] of options) {
+    const b = el('button', v === value ? 'on' : '', label);
+    b.onclick = () => { onPick(v); saveSettings(); renderSetup(); };
+    wrap.append(b);
+  }
+}
 
 function usedColors(except) {
   return new Set(settings.players.filter((p) => p !== except).map((p) => p.color));
@@ -94,6 +111,8 @@ function nextFreeColor(from, except) {
 }
 
 function renderSetup() {
+  segment($('#modeSeg'), [['normal', 'Normal'], ['drink', 'Trinkspiel 🍻']], settings.mode, (v) => { settings.mode = v; });
+
   const wrap = $('#playerRows');
   wrap.innerHTML = '';
   settings.players.forEach((p, i) => {
@@ -134,13 +153,8 @@ function renderSetup() {
 
   $('#addPlayer').disabled = settings.players.length >= MAX_PLAYERS;
 
-  const sizeSeg = $('#sizeSeg');
-  sizeSeg.innerHTML = '';
-  Object.entries(SIZES).forEach(([id, s]) => {
-    const b = el('button', settings.size === id ? 'on' : '', s.label);
-    b.onclick = () => { settings.size = id; saveSettings(); renderSetup(); };
-    sizeSeg.append(b);
-  });
+  segment($('#sizeSeg'), Object.entries(SIZES).map(([id, s]) => [id, s.label]), settings.size, (v) => { settings.size = v; });
+  renderDrinkSetup();
 }
 
 function addPlayer() {
@@ -154,6 +168,7 @@ function addPlayer() {
 
 function showSetup() {
   G && (G.id = -1); // laufende Animationen/Bots abbrechen
+  closeTask();
   $('#overlay').classList.add('hidden');
   $('#game').classList.add('hidden');
   $('#setup').classList.remove('hidden');
@@ -166,7 +181,9 @@ let G = null;
 let gameCounter = 0;
 
 function newGame() {
+  if (settings.mode === 'drink' && !hasDrinkContent(settings.drink)) return showSetup();
   const size = SIZES[settings.size];
+  const drink = settings.mode === 'drink' ? JSON.parse(JSON.stringify(settings.drink)) : null;
   G = {
     id: ++gameCounter,
     rows: size.rows,
@@ -186,7 +203,12 @@ function newGame() {
     anim: null,
     boom: null,
     log: [],
+    drink,
+    fields: drink ? buildFields(size.rows, size.cols, drink) : null, // "r,c" -> Aktionsfeld
+    rules: [], // aktive Regeln im Trinkspiel
   };
+  closeTask();
+  $('#sheetTitle').textContent = drink ? '~ ARROW-GIGANTEN · TRINKSPIEL ~' : '~ ARROW-GIGANTEN ~';
   $('#setup').classList.add('hidden');
   $('#overlay').classList.add('hidden');
   $('#game').classList.remove('hidden');
@@ -323,7 +345,60 @@ async function move(p, cell) {
     await wait(500);
     if (id !== G.id) return;
   }
+  if (G.fields) {
+    const res = await landOnField(p);
+    if (id !== G.id || res === 'again' || res === 'over') return;
+  }
   advance();
+}
+
+// Trinkspiel: Karte zum Feld zeigen und deren Effekt ausführen.
+async function landOnField(p) {
+  const field = G.fields.get(key(p.pos.r, p.pos.c));
+  if (!field) return;
+  const id = G.id;
+  G.phase = 'task';
+  render();
+  const res = await openTask(p, field);
+  if (id !== G.id) return 'over';
+
+  if (res.rule) {
+    G.rules.unshift({ ...res.rule, color: p.color });
+    G.rules.length = Math.min(G.rules.length, MAX_RULES);
+    addLog(`📜 ${p.name} aktiviert: ${res.rule.name || res.rule.t}`);
+  } else if (res.text) {
+    addLog(`${CATS[field.cat].icon} ${p.name}: ${res.text}`);
+  }
+
+  const { r, c } = p.pos;
+  switch (res.fx) {
+    case 'again':
+      G.phase = 'roll';
+      render();
+      if (p.bot) botAct();
+      return 'again';
+    case 'bomb':
+      if (!G.bombs.has(key(r, c))) G.bombs.set(key(r, c), G.players.indexOf(p));
+      G.phase = 'bomb';
+      break;
+    case 'back':
+      place(p, { r: r - 1, c }, true);
+      break;
+    case 'forward':
+      place(p, { r: r + 1, c });
+      if (r + 1 === G.rows - 1) { render(); await wait(450); win(p); return 'over'; }
+      break;
+    case 'swap': {
+      const q = res.with;
+      const qPos = q.pos;
+      place(q, { r, c }, true);
+      place(p, qPos, true);
+      addLog(`⇄ ${p.name} tauscht mit ${q.name}.`);
+      break;
+    }
+  }
+  render();
+  await wait(res.fx ? 600 : 250);
 }
 
 function win(p) {
@@ -383,8 +458,10 @@ async function animateDie() {
 
 function render() {
   renderLegend();
+  renderCatLegend();
   renderBoard();
   renderPanel();
+  renderRules();
 }
 
 // Bombe in Spielerfarbe: Körper, Glanzpunkt, Kappe, Lunte und flackernder Funke.
@@ -452,8 +529,12 @@ function renderBoard() {
   for (let r = 0; r < G.rows; r++) {
     for (let c = 0; c < G.cols; c++) {
       const v = G.visited.get(key(r, c));
-      const style = v != null ? ` style="fill:${G.players[v].color}22;stroke:${G.players[v].color}"` : '';
+      const f = G.fields && G.fields.get(key(r, c));
+      let style = '';
+      if (v != null) style = ` style="fill:${G.players[v].color}22;stroke:${G.players[v].color}"`;
+      else if (f) style = ` style="fill:${CATS[f.cat].color}2e;stroke:${CATS[f.cat].color}"`;
       h += `<circle class="cell" cx="${cx(c)}" cy="${cy(r)}" r="${R}"${style}/>`;
+      if (f) h += `<text class="field-icon" x="${cx(c)}" y="${cy(r) + 5}" text-anchor="middle">${CATS[f.cat].icon}</text>`;
     }
   }
 
@@ -524,6 +605,7 @@ function statusText() {
     case 'boom': return `💥 Bumm! ${p.name} fliegt zurück.`;
     case 'skip': return `${p.name} muss aussetzen.`;
     case 'moving': return `${p.name} zieht …`;
+    case 'task': return `${p.name} ist auf einem Aktionsfeld gelandet!`;
     case 'over': return 'Spiel vorbei!';
     default: return '';
   }
@@ -601,4 +683,5 @@ document.addEventListener('keydown', (e) => {
   }
 });
 
+bindDrinkSetup();
 renderSetup();
