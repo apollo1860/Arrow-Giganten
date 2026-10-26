@@ -354,3 +354,102 @@ h1, h2, .sheet-title, .legend, .btn, .status { font-family: "Fredoka", system-ui
   .leg .arr.bomb-label { font-size: 12px; }
   .board { max-height: none; }
 }
+
+/* ---------- Trinkspiel ---------- */
+.card h3 { font-size: 15px; margin: 14px 0 8px; font-family: "Fredoka", system-ui, sans-serif; }
+.hint { background: #fff3b0; border-radius: 10px; padding: 8px 12px; font-size: 14px; margin: 16px 0 0; }
+.sub { margin: -4px 0 10px; font-size: 14px; color: var(--muted); }
+.warn { color: #c51b24; font-weight: 600; font-size: 14px; margin: 10px 0 0; }
+.warn:empty { display: none; }
+.btn.primary:disabled.big { background: #9aa9c9; }
+
+.custom-box { margin-top: 12px; }
+.custom-add { display: flex; gap: 6px; }
+.custom-add select, .custom-add input {
+  font: inherit;
+  font-size: 15px;
+  padding: 8px;
+  border: 1px solid #d5d5d0;
+  border-radius: 10px;
+  background: #fff;
+}
+.custom-add select { flex: none; max-width: 42%; }
+.custom-add input { flex: 1; min-width: 0; }
+.custom-add .btn { flex: none; padding: 8px 14px; }
+.custom-list { list-style: none; margin: 8px 0; padding: 0; display: flex; flex-direction: column; gap: 4px; max-height: 190px; overflow: auto; }
+.custom-list li {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 4px 4px 4px 10px;
+  border-left: 4px solid var(--cat);
+  background: rgba(0, 0, 0, .035);
+  border-radius: 8px;
+  font-size: 14px;
+}
+.custom-list li.empty { border-left-color: transparent; color: var(--muted); padding: 8px 10px; }
+.custom-list .ct { flex: 1; min-width: 0; overflow-wrap: anywhere; }
+.custom-list .remove, .rules-box .remove { width: 28px; height: 28px; font-size: 16px; }
+.check { display: flex; align-items: center; gap: 8px; font-size: 14px; cursor: pointer; }
+.check input { width: 18px; height: 18px; }
+
+.chips { display: flex; flex-wrap: wrap; gap: 6px; }
+.chip {
+  border: 2px solid var(--cat);
+  background: #fff;
+  color: var(--ink);
+  border-radius: 999px;
+  padding: 6px 12px;
+  font: inherit;
+  font-size: 14px;
+  cursor: pointer;
+  opacity: .45;
+}
+.chip.on { opacity: 1; background: color-mix(in srgb, var(--cat) 18%, #fff); font-weight: 600; }
+
+.cat-legend { display: flex; flex-wrap: wrap; justify-content: center; gap: 6px; margin: 0 0 6px; }
+.cat-legend .cl {
+  font-size: 12px;
+  font-weight: 600;
+  padding: 2px 8px;
+  border-radius: 999px;
+  border: 1.5px solid var(--cat);
+  background: color-mix(in srgb, var(--cat) 15%, #fff);
+}
+.board .field-icon { font-size: 15px; pointer-events: none; }
+
+.rules-box { background: color-mix(in srgb, #8a3fd1 8%, #fff); border-radius: 10px; padding: 8px 10px; }
+.rules-box h3 { margin: 0 0 6px; font-size: 15px; font-family: "Fredoka", system-ui, sans-serif; }
+.rules-box ul { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 4px; }
+.rules-box li { display: flex; align-items: center; gap: 6px; font-size: 13px; border-left: 4px solid var(--c); padding-left: 8px; }
+.rules-box li.empty { border: 0; padding: 0; color: var(--muted); }
+.rules-box .rt { flex: 1; }
+
+.task-card { max-width: 420px; text-align: center; border-top: 10px solid var(--cat); animation: pop .35s cubic-bezier(.2, 1.4, .4, 1); }
+.task-head { display: flex; flex-direction: column; align-items: center; font: 700 22px "Fredoka", system-ui, sans-serif; color: var(--cat); }
+.task-icon { font-size: 52px; line-height: 1.1; }
+.task-who { display: flex; align-items: center; justify-content: center; gap: 6px; color: var(--muted); font-weight: 600; margin-top: 2px; }
+.task-text { font-size: 20px; line-height: 1.35; margin: 14px 0 16px; }
+.rule-options { display: flex; flex-direction: column; gap: 6px; max-height: 42vh; overflow: auto; margin-bottom: 10px; text-align: left; }
+.rule-option {
+  border: 2px solid color-mix(in srgb, var(--cat) 35%, #fff);
+  background: #fff;
+  border-radius: 12px;
+  padding: 8px 12px;
+  font: inherit;
+  font-size: 14px;
+  cursor: pointer;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  text-align: left;
+}
+.rule-option:hover { border-color: var(--cat); background: color-mix(in srgb, var(--cat) 8%, #fff); }
+.rule-option b { font-family: "Fredoka", system-ui, sans-serif; color: var(--cat); }
+.own-rule { display: flex; gap: 6px; margin-bottom: 12px; }
+.own-rule input { flex: 1; min-width: 0; font: inherit; font-size: 15px; padding: 8px 10px; border: 1px solid #d5d5d0; border-radius: 10px; }
+.task-card .btn.swap { border-left: 6px solid var(--c); }
+
+@media (max-width: 820px) {
+  .rules-box { order: 1; }
+}
